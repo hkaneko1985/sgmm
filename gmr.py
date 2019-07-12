@@ -3,11 +3,13 @@
 """
 @author: Hiromasa Kaneko
 """
+import math
+
 import numpy as np
 import numpy.matlib
 from scipy.stats import multivariate_normal
-import math
 from sklearn import mixture
+
 
 def gmr_predict(gmm_model, input_variables, numbers_of_input_variables, numbers_of_output_variables):
     """
@@ -70,34 +72,35 @@ def gmr_predict(gmm_model, input_variables, numbers_of_input_variables, numbers_
         for component_number in range(gmm_model.n_components):
             all_covariances[component_number, :, :] = np.diag(
                 gmm_model.covariances_[component_number] * np.ones(len(gmm_model.means_)))
-            
+
     if all_covariances.shape[2] == len(numbers_of_input_variables) + len(numbers_of_output_variables):
         input_output_covariances = all_covariances[:, numbers_of_input_variables, :]
         input_covariances = input_output_covariances[:, :, numbers_of_input_variables]
         input_output_covariances = input_output_covariances[:, :, numbers_of_output_variables]
-    
+
         # estimated means and weights for all components
         estimated_mean_for_all_components = np.empty(
             [gmm_model.n_components, input_variables.shape[0], len(numbers_of_output_variables)])
         weights = np.empty([gmm_model.n_components, input_variables.shape[0]])
         for component_number in range(gmm_model.n_components):
             estimated_mean_for_all_components[component_number, :, :] = output_means[component_number, :] + (
-                        input_variables - input_means[component_number, :]).dot(
+                    input_variables - input_means[component_number, :]).dot(
                 np.linalg.inv(input_covariances[component_number, :, :])).dot(
                 input_output_covariances[component_number, :, :])
             weights[component_number, :] = gmm_model.weights_[component_number] * \
                                            multivariate_normal.pdf(input_variables,
                                                                    input_means[component_number, :],
                                                                    input_covariances[component_number, :, :])
-    
+
         weights = weights / weights.sum(axis=0)
-    
+
         # calculate mode of estimated means and weighted estimated means
         mode_of_estimated_mean = np.empty([input_variables.shape[0], len(numbers_of_output_variables)])
         weighted_estimated_mean = np.empty([input_variables.shape[0], len(numbers_of_output_variables)])
         index_for_mode = np.argmax(weights, axis=0)
         for sample_number in range(input_variables.shape[0]):
-            mode_of_estimated_mean[sample_number, :] = estimated_mean_for_all_components[index_for_mode[sample_number], sample_number, :]
+            mode_of_estimated_mean[sample_number, :] = estimated_mean_for_all_components[index_for_mode[sample_number],
+                                                       sample_number, :]
             weighted_estimated_mean[sample_number, :] = weights[:, sample_number].dot(
                 estimated_mean_for_all_components[:, sample_number, :])
     else:
@@ -106,10 +109,12 @@ def gmr_predict(gmm_model, input_variables, numbers_of_input_variables, numbers_
         weights = np.zeros([gmm_model.n_components, input_variables.shape[0]])
         estimated_mean_for_all_components = np.zeros(
             [gmm_model.n_components, input_variables.shape[0], len(numbers_of_output_variables)])
-        
+
     return mode_of_estimated_mean, weighted_estimated_mean, estimated_mean_for_all_components, weights
 
-def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, covariance_types, max_number_of_components, fold_number):
+
+def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, covariance_types,
+              max_number_of_components, fold_number):
     """
     Hyperparameter optimization for Gaussian Mixture Regression (GMR)
 
@@ -141,7 +146,7 @@ def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, 
     best_number_of_components : int
         best number of components
     """
-    
+
     dataset = np.array(dataset)
     autoscaled_dataset = (dataset - dataset.mean(axis=0)) / dataset.std(axis=0, ddof=1)
 
@@ -149,26 +154,28 @@ def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, 
     for covariance_type in covariance_types:
         for number_of_components in range(max_number_of_components):
             estimated_y_in_cv = np.zeros([dataset.shape[0], len(numbers_of_output_variables)])
-            
+
             min_number = math.floor(dataset.shape[0] / fold_number)
             mod_number = dataset.shape[0] - min_number * fold_number
-            index = np.matlib.repmat(np.arange(1, fold_number+1, 1), 1, min_number).ravel()
+            index = np.matlib.repmat(np.arange(1, fold_number + 1, 1), 1, min_number).ravel()
             if mod_number != 0:
-                index = np.r_[index, np.arange( 1, mod_number+1, 1 )]
-#            np.random.seed(999) 
+                index = np.r_[index, np.arange(1, mod_number + 1, 1)]
+            #            np.random.seed(999)
             fold_index_in_cv = np.random.permutation(index)
             np.random.seed()
-            for fold_number_in_cv in np.arange(1, fold_number+1, 1):
+            for fold_number_in_cv in np.arange(1, fold_number + 1, 1):
                 dataset_train_in_cv = autoscaled_dataset[fold_index_in_cv != fold_number_in_cv, :]
                 dataset_test_in_cv = autoscaled_dataset[fold_index_in_cv == fold_number_in_cv, :]
-                gmm_model = mixture.GaussianMixture(n_components=number_of_components + 1, covariance_type=covariance_type)
+                gmm_model = mixture.GaussianMixture(n_components=number_of_components + 1,
+                                                    covariance_type=covariance_type)
                 gmm_model.fit(dataset_train_in_cv)
-                
+
                 mode_of_estimated_mean_of_Y, weighted_estimated_mean_of_Y, estimated_mean_of_Y_for_all_components, weights_for_X = \
-                    gmr_predict(gmm_model, dataset_test_in_cv[:, numbers_of_input_variables], numbers_of_input_variables, numbers_of_output_variables)
-            
-                estimated_y_in_cv[fold_index_in_cv == fold_number_in_cv, :] = mode_of_estimated_mean_of_Y # 格納
-            
+                    gmr_predict(gmm_model, dataset_test_in_cv[:, numbers_of_input_variables],
+                                numbers_of_input_variables, numbers_of_output_variables)
+
+                estimated_y_in_cv[fold_index_in_cv == fold_number_in_cv, :] = mode_of_estimated_mean_of_Y  # 格納
+
             y = np.ravel(autoscaled_dataset[:, numbers_of_output_variables])
             y_pred = np.ravel(estimated_y_in_cv)
             r2 = float(1 - sum((y - y_pred) ** 2) / sum((y - y.mean()) ** 2))
@@ -176,7 +183,5 @@ def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, 
     max_r2cv_number = np.where(r2cvs == np.max(r2cvs))[0][0]
     best_covariance_type = covariance_types[max_r2cv_number // max_number_of_components]
     best_number_of_components = max_r2cv_number % max_number_of_components + 1
-    
+
     return best_covariance_type, best_number_of_components
-    
-    
