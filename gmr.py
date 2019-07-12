@@ -4,10 +4,10 @@
 @author: Hiromasa Kaneko
 """
 import numpy as np
+import numpy.matlib
 from scipy.stats import multivariate_normal
 import math
 from sklearn import mixture
-import matplotlib.pyplot as plt
 
 def gmr_predict(gmm_model, input_variables, numbers_of_input_variables, numbers_of_output_variables):
     """
@@ -148,8 +148,6 @@ def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, 
     r2cvs = []
     for covariance_type in covariance_types:
         for number_of_components in range(max_number_of_components):
-#            print(covariance_type)
-#            print(number_of_components)
             estimated_y_in_cv = np.zeros([dataset.shape[0], len(numbers_of_output_variables)])
             
             min_number = math.floor(dataset.shape[0] / fold_number)
@@ -174,18 +172,6 @@ def gmr_cvopt(dataset, numbers_of_input_variables, numbers_of_output_variables, 
             y = np.ravel(autoscaled_dataset[:, numbers_of_output_variables])
             y_pred = np.ravel(estimated_y_in_cv)
             r2 = float(1 - sum((y - y_pred) ** 2) / sum((y - y.mean()) ** 2))
-            
-#            plt.scatter(y, y_pred, color='b')
-#            YMax = np.max(np.array([y, y_pred]))
-#            YMin = np.min(np.array([y, y_pred]))
-#            plt.plot([YMin - 0.05 * (YMax - YMin), YMax + 0.05 * (YMax - YMin)],
-#                     [YMin - 0.05 * (YMax - YMin), YMax + 0.05 * (YMax - YMin)], 'k-')
-#            plt.ylim(YMin - 0.05 * (YMax - YMin), YMax + 0.05 * (YMax - YMin))
-#            plt.xlim(YMin - 0.05 * (YMax - YMin), YMax + 0.05 * (YMax - YMin))
-#            plt.xlabel("Actual Y")
-#            plt.ylabel("Estimated Y")
-#            plt.show()
-#            print(r2)
             r2cvs.append(r2)
     max_r2cv_number = np.where(r2cvs == np.max(r2cvs))[0][0]
     best_covariance_type = covariance_types[max_r2cv_number // max_number_of_components]
