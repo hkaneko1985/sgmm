@@ -32,7 +32,7 @@ for iteration in range(iterations):
     else:
         x = arranged_x.copy()
 
-    # standardize X and y
+    # standardize x and y
     autoscaled_x = (x - x.mean(axis=0)) / x.std(axis=0, ddof=1)
     x_mean = np.array(x.mean(axis=0))
     x_std = np.array(x.std(axis=0, ddof=1))
