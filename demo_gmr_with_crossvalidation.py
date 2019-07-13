@@ -2,18 +2,20 @@
 """
 @author: Hiromasa Kaneko
 """
-# Demonstration of Gaussian Mixture Regression (GMR), which is supervised Gaussian Mixture Model (GMM)
+# Demonstration of optimization of covariance type and the number of components
+# in Gaussian Mixture Regression (GMR), which is supervised Gaussian Mixture Model (GMM)
 
 import matplotlib.figure as figure
 import matplotlib.pyplot as plt
 import numpy as np
-from gmr import gmr_predict
+from gmr import gmr_predict, gmr_cvopt
 from sklearn import mixture
 from sklearn.model_selection import train_test_split
 
 # Settings
-number_of_components = 8
-covariance_type = 'spherical'  # 'full', 'diag', 'tied', 'spherical'
+max_number_of_components = 20
+covariance_types = ['full', 'diag', 'tied', 'spherical']
+fold_number = 5
 
 number_of_all_samples = 500
 number_of_test_samples = 200
@@ -32,12 +34,17 @@ y2 = y2 + y2.std(ddof=1) * 0.05 * np.random.randn(number_of_all_samples, 1)
 variables = np.c_[X, y1, y2]
 variables_train, variables_test = train_test_split(variables, test_size=number_of_test_samples, random_state=100)
 
-# Standardize X and y
+# Standardize x and y
 autoscaled_variables_train = (variables_train - variables_train.mean(axis=0)) / variables_train.std(axis=0, ddof=1)
 autoscaled_variables_test = (variables_test - variables_train.mean(axis=0)) / variables_train.std(axis=0, ddof=1)
 
+# Grid search with cross-validation
+optimal_covariance_type, optimal_number_of_components = gmr_cvopt(autoscaled_variables_train, numbers_of_X,
+                                                                  numbers_of_Y, covariance_types,
+                                                                  max_number_of_components, fold_number)
+
 # GMM
-gmm_model = mixture.GaussianMixture(n_components=number_of_components, covariance_type=covariance_type)
+gmm_model = mixture.GaussianMixture(n_components=optimal_number_of_components, covariance_type=optimal_covariance_type)
 gmm_model.fit(autoscaled_variables_train)
 
 # Forward analysis (regression)
@@ -82,10 +89,11 @@ print('Results of inverse analysis')
 estimated_X_test = mode_of_estimated_mean_of_X * variables_train[:, numbers_of_X].std(ddof=1) + \
                    variables_train[:, numbers_of_X].mean()
 calculated_Y_from_estimated_X_test = np.empty([number_of_test_samples, 2])
-calculated_Y_from_estimated_X_test[:, 0:1] = 3 * estimated_X_test[:, 0:1] - 2 * estimated_X_test[:, 1:2] \
-                                             + 0.5 * estimated_X_test[:, 2:3]
-calculated_Y_from_estimated_X_test[:, 1:2] = 5 * estimated_X_test[:, 0:1] + 2 * estimated_X_test[:, 1:2] ** 3 \
-                                             - estimated_X_test[:, 2:3] ** 2
+calculated_Y_from_estimated_X_test[:, 0:1] = 3 * estimated_X_test[:, 0:1] - 2 * estimated_X_test[:,
+                                                                                1:2] + 0.5 * estimated_X_test[:, 2:3]
+calculated_Y_from_estimated_X_test[:, 1:2] = 5 * estimated_X_test[:, 0:1] + 2 * estimated_X_test[:,
+                                                                                1:2] ** 3 - estimated_X_test[:,
+                                                                                            2:3] ** 2
 for Y_number in range(len(numbers_of_Y)):
     predicted_ytest = np.ndarray.flatten(calculated_Y_from_estimated_X_test[:, Y_number])
     # yy-plot

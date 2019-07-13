@@ -33,7 +33,7 @@ y2 = y2 + y2.std(ddof=1) * 0.05 * np.random.randn(number_of_all_samples, 1)
 variables = np.c_[X, y1, y2]
 variables_train, variables_test = train_test_split(variables, test_size=number_of_test_samples, random_state=100)
 
-# Standarize X and y
+# Standardize X and y
 autoscaled_variables_train = (variables_train - variables_train.mean(axis=0)) / variables_train.std(axis=0, ddof=1)
 autoscaled_variables_test = (variables_test - variables_train.mean(axis=0)) / variables_train.std(axis=0, ddof=1)
 
